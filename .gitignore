@@ -1,0 +1,28 @@
+# Secrets: database URLs and passwords. Never commit.
+.env
+.env.*
+!.env.example
+
+# Release builds (large binaries; attach to GitHub Releases instead)
+release/
+*.apk
+*.aab
+
+# Android signing material
+*.jks
+*.keystore
+key.properties
+
+# Vercel (web/)
+.vercel/
+node_modules/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# OS and editor clutter (.vscode/launch.json is shared on purpose)
+.DS_Store
+.idea/
+*.iml
+*.log

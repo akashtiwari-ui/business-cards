@@ -1,0 +1,12 @@
+{
+  "name": "bcard-web",
+  "private": true,
+  "description": "B Card public profile pages and vCard downloads (PRD 4.7)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
