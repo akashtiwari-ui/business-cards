@@ -34,6 +34,25 @@ class FakeNfcService implements NfcService {
   @override
   Future<void> openSettings() async => settingsOpened = true;
 
+  String? savedLink = 'https://b-cards.vercel.app/p/aarav';
+  bool alwaysOn = false;
+  bool tileRequested = false;
+
+  @override
+  Future<void> saveShareLink(String? url) async => savedLink = url;
+
+  @override
+  Future<bool> isAlwaysOn() async => alwaysOn;
+
+  @override
+  Future<bool> setAlwaysOn(bool on) async => alwaysOn = on && savedLink != null;
+
+  @override
+  Future<bool> canAddQuickSettingsTile() async => true;
+
+  @override
+  Future<void> addQuickSettingsTile() async => tileRequested = true;
+
   @override
   Future<void> writeUrl(String url, {void Function()? onTagDetected}) {
     writtenUrl = url;
@@ -44,7 +63,9 @@ class FakeNfcService implements NfcService {
   @override
   Future<void> cancelWrite() async {
     if (!(pendingWrite?.isCompleted ?? true)) {
-      pendingWrite!.completeError(const NfcWriteFailure(NfcWriteError.cancelled));
+      pendingWrite!.completeError(
+        const NfcWriteFailure(NfcWriteError.cancelled),
+      );
     }
   }
 }
@@ -52,13 +73,18 @@ class FakeNfcService implements NfcService {
 const _url = 'https://b-cards.vercel.app/p/aarav';
 
 Widget _panel(FakeNfcService nfc) => ProviderScope(
-      overrides: [nfcServiceProvider.overrideWithValue(nfc)],
-      child: MaterialApp(theme: AppTheme.light, home: const Scaffold(body: NfcSharePanel(url: _url))),
-    );
+  overrides: [nfcServiceProvider.overrideWithValue(nfc)],
+  child: MaterialApp(
+    theme: AppTheme.light,
+    home: const Scaffold(body: NfcSharePanel(url: _url)),
+  ),
+);
 
 void main() {
   testWidgets('phones without NFC are pointed to the QR code', (tester) async {
-    await tester.pumpWidget(_panel(FakeNfcService(support: NfcSupport.unsupported)));
+    await tester.pumpWidget(
+      _panel(FakeNfcService(support: NfcSupport.unsupported)),
+    );
     await tester.pumpAndSettle();
     expect(find.text("This phone doesn't have NFC"), findsOneWidget);
   });
@@ -84,7 +110,9 @@ void main() {
     expect(nfc.sharing, isNull);
   });
 
-  testWidgets('phones without card emulation can still write tags', (tester) async {
+  testWidgets('phones without card emulation can still write tags', (
+    tester,
+  ) async {
     final nfc = FakeNfcService(tapToShare: false);
     await tester.pumpWidget(_panel(nfc));
     await tester.pumpAndSettle();
@@ -115,23 +143,70 @@ void main() {
 
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    expect(nfc.sharing, _url, reason: 'tap to share resumes after the sheet closes');
+    expect(
+      nfc.sharing,
+      _url,
+      reason: 'tap to share resumes after the sheet closes',
+    );
   });
 
-  testWidgets('a locked tag shows the reason and can be retried', (tester) async {
+  testWidgets('a locked tag shows the reason and can be retried', (
+    tester,
+  ) async {
     final nfc = FakeNfcService();
     await tester.pumpWidget(_panel(nfc));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Write to NFC tag'));
     await tester.pumpAndSettle();
 
-    nfc.pendingWrite!.completeError(const NfcWriteFailure(NfcWriteError.readOnly));
+    nfc.pendingWrite!.completeError(
+      const NfcWriteFailure(NfcWriteError.readOnly),
+    );
     await tester.pumpAndSettle();
     expect(find.text("Couldn't write the tag"), findsOneWidget);
-    expect(find.text('This tag is locked and cannot be changed.'), findsOneWidget);
+    expect(
+      find.text('This tag is locked and cannot be changed.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(find.text('Ready to write'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Always on keeps sharing after leaving and can add a Quick Settings tile',
+    (tester) async {
+      final nfc = FakeNfcService();
+      await tester.pumpWidget(_panel(nfc));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Always on'));
+      await tester.pumpAndSettle();
+      expect(nfc.alwaysOn, isTrue);
+
+      await tester.tap(find.text('Add to Quick Settings'));
+      expect(nfc.tileRequested, isTrue);
+
+      await tester.pumpWidget(const SizedBox());
+      expect(
+        nfc.alwaysOn,
+        isTrue,
+        reason: 'leaving the tab does not switch it off',
+      );
+    },
+  );
+
+  testWidgets('Always on stays off when there is no public link to share', (
+    tester,
+  ) async {
+    final nfc = FakeNfcService()..savedLink = null;
+    await tester.pumpWidget(_panel(nfc));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Always on'));
+    await tester.pumpAndSettle();
+    expect(nfc.alwaysOn, isFalse);
+    expect(find.textContaining('Make your profile public'), findsOneWidget);
   });
 }

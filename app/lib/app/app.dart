@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/card/application/card_providers.dart';
+import '../features/nfc/application/nfc_providers.dart';
 import '../features/scan/application/scan_providers.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -15,6 +16,8 @@ class BCardApp extends ConsumerWidget {
     ref.watch(cardSyncProvider);
     // Completes cards scanned while offline.
     ref.watch(pendingScanResolverProvider);
+    // Saved link for always-on NFC tap to share.
+    ref.watch(nfcShareLinkSyncProvider);
     return MaterialApp.router(
       title: 'B Card',
       debugShowCheckedModeBanner: false,

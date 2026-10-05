@@ -17,7 +17,10 @@ const _prefixes = <(int, String)>[
 Uint8List encodeUriPayload(String uri) {
   for (final (code, prefix) in _prefixes) {
     if (uri.startsWith(prefix)) {
-      return Uint8List.fromList([code, ...utf8.encode(uri.substring(prefix.length))]);
+      return Uint8List.fromList([
+        code,
+        ...utf8.encode(uri.substring(prefix.length)),
+      ]);
     }
   }
   return Uint8List.fromList([0x00, ...utf8.encode(uri)]);
@@ -32,6 +35,17 @@ Uint8List encodeUriNdefMessage(String uri) {
   final header = 0x80 | 0x40 | (short ? 0x10 : 0x00) | 0x01;
   final length = short
       ? [payload.length]
-      : [(payload.length >> 24) & 0xFF, (payload.length >> 16) & 0xFF, (payload.length >> 8) & 0xFF, payload.length & 0xFF];
-  return Uint8List.fromList([header, 0x01, ...length, 0x55 /* 'U' */, ...payload]);
+      : [
+          (payload.length >> 24) & 0xFF,
+          (payload.length >> 16) & 0xFF,
+          (payload.length >> 8) & 0xFF,
+          payload.length & 0xFF,
+        ];
+  return Uint8List.fromList([
+    header,
+    0x01,
+    ...length,
+    0x55 /* 'U' */,
+    ...payload,
+  ]);
 }

@@ -1,11 +1,14 @@
 package com.bcard.b_card
 
+import android.app.StatusBarManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -36,6 +39,25 @@ class MainActivity : FlutterActivity() {
                     NdefCardService.ndefMessage = null
                     setPreferred(false)
                     result.success(null)
+                }
+                "saveShareLink" -> {
+                    NfcShareStore.setNdef(this, call.argument<ByteArray>("ndef"))
+                    result.success(null)
+                }
+                "isAlwaysOn" -> result.success(NfcShareStore.isAlwaysOn(this))
+                "setAlwaysOn" -> result.success(NfcShareStore.setAlwaysOn(this, call.argument<Boolean>("on") == true))
+                "canAddTile" -> result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                "addTile" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        getSystemService(StatusBarManager::class.java).requestAddTileService(
+                            ComponentName(this, NfcShareTileService::class.java),
+                            getString(R.string.nfc_tile_label),
+                            Icon.createWithResource(this, R.drawable.ic_tile_nfc),
+                            mainExecutor,
+                        ) { code -> result.success(code) }
+                    } else {
+                        result.success(-1)
+                    }
                 }
                 "openNfcSettings" -> {
                     startActivity(Intent(Settings.ACTION_NFC_SETTINGS))

@@ -32,14 +32,16 @@ class PlatformNfcService implements NfcService {
   @override
   Future<void> writeUrl(String url, {void Function()? onTagDetected}) {
     final done = Completer<void>();
-    final message = NdefMessage(records: [
-      NdefRecord(
-        typeNameFormat: TypeNameFormat.wellKnown,
-        type: Uint8List.fromList([0x55]), // 'U'
-        identifier: Uint8List(0),
-        payload: encodeUriPayload(url),
-      ),
-    ]);
+    final message = NdefMessage(
+      records: [
+        NdefRecord(
+          typeNameFormat: TypeNameFormat.wellKnown,
+          type: Uint8List.fromList([0x55]), // 'U'
+          identifier: Uint8List(0),
+          payload: encodeUriPayload(url),
+        ),
+      ],
+    );
 
     void fail(NfcWriteError reason) {
       if (!done.isCompleted) done.completeError(NfcWriteFailure(reason));
@@ -47,24 +49,37 @@ class PlatformNfcService implements NfcService {
 
     NfcManager.instance
         .startSession(
-          pollingOptions: {NfcPollingOption.iso14443, NfcPollingOption.iso15693},
+          pollingOptions: {
+            NfcPollingOption.iso14443,
+            NfcPollingOption.iso15693,
+          },
           alertMessageIos: 'Hold the NFC tag near the top of your iPhone.',
           onSessionErrorIos: (_) => fail(NfcWriteError.cancelled),
           onDiscovered: (tag) async {
             onTagDetected?.call();
             try {
               final ndef = Ndef.from(tag);
-              if (ndef == null) throw const NfcWriteFailure(NfcWriteError.notNdef);
-              if (!ndef.isWritable) throw const NfcWriteFailure(NfcWriteError.readOnly);
-              if (message.byteLength > ndef.maxSize) throw const NfcWriteFailure(NfcWriteError.tooSmall);
+              if (ndef == null) {
+                throw const NfcWriteFailure(NfcWriteError.notNdef);
+              }
+              if (!ndef.isWritable) {
+                throw const NfcWriteFailure(NfcWriteError.readOnly);
+              }
+              if (message.byteLength > ndef.maxSize) {
+                throw const NfcWriteFailure(NfcWriteError.tooSmall);
+              }
               await ndef.write(message: message);
-              await NfcManager.instance.stopSession(alertMessageIos: 'Your card is on the tag.');
+              await NfcManager.instance.stopSession(
+                alertMessageIos: 'Your card is on the tag.',
+              );
               if (!done.isCompleted) done.complete();
             } on NfcWriteFailure catch (e) {
               await NfcManager.instance.stopSession(errorMessageIos: e.message);
               fail(e.reason);
             } catch (_) {
-              await NfcManager.instance.stopSession(errorMessageIos: 'Could not write the tag.');
+              await NfcManager.instance.stopSession(
+                errorMessageIos: 'Could not write the tag.',
+              );
               fail(NfcWriteError.lostConnection);
             }
           },
@@ -92,13 +107,41 @@ class PlatformNfcService implements NfcService {
   @override
   Future<void> startTapToShare(String url) async {
     if (!_isAndroid) return;
-    await _channel.invokeMethod<void>('startCardEmulation', {'ndef': encodeUriNdefMessage(url)});
+    await _channel.invokeMethod<void>('startCardEmulation', {
+      'ndef': encodeUriNdefMessage(url),
+    });
   }
 
   @override
   Future<void> stopTapToShare() async {
     if (!_isAndroid) return;
     await _channel.invokeMethod<void>('stopCardEmulation');
+  }
+
+  @override
+  Future<void> saveShareLink(String? url) async {
+    if (!_isAndroid) return;
+    await _channel.invokeMethod<void>('saveShareLink', {
+      'ndef': url == null ? null : encodeUriNdefMessage(url),
+    });
+  }
+
+  @override
+  Future<bool> isAlwaysOn() async =>
+      _isAndroid && (await _channel.invokeMethod<bool>('isAlwaysOn') ?? false);
+
+  @override
+  Future<bool> setAlwaysOn(bool on) async =>
+      _isAndroid &&
+      (await _channel.invokeMethod<bool>('setAlwaysOn', {'on': on}) ?? false);
+
+  @override
+  Future<bool> canAddQuickSettingsTile() async =>
+      _isAndroid && (await _channel.invokeMethod<bool>('canAddTile') ?? false);
+
+  @override
+  Future<void> addQuickSettingsTile() async {
+    if (_isAndroid) await _channel.invokeMethod<int>('addTile');
   }
 
   @override

@@ -24,6 +24,8 @@ class _NfcSharePanelState extends ConsumerState<NfcSharePanel> {
   NfcSupport? _support;
   bool _canTapShare = false;
   bool _tapSharing = false;
+  bool _alwaysOn = false;
+  bool _canAddTile = false;
 
   @override
   void initState() {
@@ -42,11 +44,16 @@ class _NfcSharePanelState extends ConsumerState<NfcSharePanel> {
 
   Future<void> _refresh() async {
     final support = await _nfc.availability();
-    final canTapShare = support == NfcSupport.enabled && await _nfc.supportsTapToShare();
+    final canTapShare =
+        support == NfcSupport.enabled && await _nfc.supportsTapToShare();
+    final alwaysOn = canTapShare && await _nfc.isAlwaysOn();
+    final canAddTile = canTapShare && await _nfc.canAddQuickSettingsTile();
     if (!mounted) return;
     setState(() {
       _support = support;
       _canTapShare = canTapShare;
+      _alwaysOn = alwaysOn;
+      _canAddTile = canAddTile;
     });
     await _setTapSharing(canTapShare);
   }
@@ -58,6 +65,21 @@ class _NfcSharePanelState extends ConsumerState<NfcSharePanel> {
       if (mounted) setState(() => _tapSharing = on);
     } catch (_) {
       if (mounted) setState(() => _tapSharing = false);
+    }
+  }
+
+  Future<void> _setAlwaysOn(bool on) async {
+    final result = await _nfc.setAlwaysOn(on);
+    if (!mounted) return;
+    setState(() => _alwaysOn = result);
+    if (on && !result) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Make your profile public on My Card to share it by tap.',
+          ),
+        ),
+      );
     }
   }
 
@@ -79,43 +101,62 @@ class _NfcSharePanelState extends ConsumerState<NfcSharePanel> {
     return switch (_support) {
       null => const Center(child: CircularProgressIndicator()),
       NfcSupport.unsupported => const _Notice(
-          icon: Icons.nfc,
-          title: "This phone doesn't have NFC",
-          body: 'Share with the QR code instead.',
-        ),
+        icon: Icons.nfc,
+        title: "This phone doesn't have NFC",
+        body: 'Share with the QR code instead.',
+      ),
       NfcSupport.disabled => _Notice(
-          icon: Icons.nfc,
-          title: 'NFC is turned off',
-          body: 'Turn on NFC to share your card by tapping.',
-          action: FilledButton(onPressed: _nfc.openSettings, child: const Text('Open NFC settings')),
+        icon: Icons.nfc,
+        title: 'NFC is turned off',
+        body: 'Turn on NFC to share your card by tapping.',
+        action: FilledButton(
+          onPressed: _nfc.openSettings,
+          child: const Text('Open NFC settings'),
         ),
+      ),
       NfcSupport.enabled => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _TapToShareCard(available: _canTapShare, active: _tapSharing),
-            const SizedBox(height: 12),
-            _ActionCard(
-              icon: Icons.contactless_outlined,
-              title: 'Write to an NFC tag',
-              body: 'Put your card on an NFC sticker, keychain or blank NFC card. '
-                  'Anyone can tap it to open your profile.',
-              action: FilledButton.icon(
-                onPressed: _openWriteSheet,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Write to NFC tag'),
-              ),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _TapToShareCard(
+            available: _canTapShare,
+            active: _tapSharing,
+            alwaysOn: _alwaysOn,
+            onAlwaysOnChanged: _setAlwaysOn,
+            onAddTile: _canAddTile ? _nfc.addQuickSettingsTile : null,
+          ),
+          const SizedBox(height: 12),
+          _ActionCard(
+            icon: Icons.contactless_outlined,
+            title: 'Write to an NFC tag',
+            body:
+                'Put your card on an NFC sticker, keychain or blank NFC card. '
+                'Anyone can tap it to open your profile.',
+            action: FilledButton.icon(
+              onPressed: _openWriteSheet,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Write to NFC tag'),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     };
   }
 }
 
 class _TapToShareCard extends StatelessWidget {
-  const _TapToShareCard({required this.available, required this.active});
+  const _TapToShareCard({
+    required this.available,
+    required this.active,
+    required this.alwaysOn,
+    required this.onAlwaysOnChanged,
+    this.onAddTile,
+  });
 
   final bool available;
   final bool active;
+  final bool alwaysOn;
+  final ValueChanged<bool> onAlwaysOnChanged;
+  final VoidCallback? onAddTile;
 
   @override
   Widget build(BuildContext context) {
@@ -123,25 +164,53 @@ class _TapToShareCard extends StatelessWidget {
       return const _ActionCard(
         icon: Icons.tap_and_play,
         title: 'Tap phones to share',
-        body: "This phone can't share by tapping. Write your card to an NFC tag instead.",
+        body:
+            "This phone can't share by tapping. Write your card to an NFC tag instead.",
       );
     }
     return _ActionCard(
       icon: Icons.tap_and_play,
       title: 'Tap phones to share',
-      body: 'Hold the back of another phone against yours. Their phone opens your profile, '
-          'no app needed. Keep this screen open and unlocked.',
+      body:
+          'Hold the back of another phone against yours. Their phone opens your profile, '
+          'no app needed.',
       status: StatusPill(
         label: active ? 'Ready to share' : 'Starting…',
         icon: active ? Icons.check_circle_outline : Icons.hourglass_empty,
         tone: active ? PillTone.success : PillTone.neutral,
+      ),
+      action: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Always on'),
+            subtitle: const Text(
+              'Share by tap even when B Card is closed, whenever your screen is on.',
+            ),
+            value: alwaysOn,
+            onChanged: onAlwaysOnChanged,
+          ),
+          if (onAddTile != null)
+            OutlinedButton.icon(
+              onPressed: onAddTile,
+              icon: const Icon(Icons.add_to_home_screen),
+              label: const Text('Add to Quick Settings'),
+            ),
+        ],
       ),
     );
   }
 }
 
 class _ActionCard extends StatelessWidget {
-  const _ActionCard({required this.icon, required this.title, required this.body, this.status, this.action});
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    this.status,
+    this.action,
+  });
 
   final IconData icon;
   final String title;
@@ -165,11 +234,18 @@ class _ActionCard extends StatelessWidget {
                   child: Icon(icon, color: theme.colorScheme.primary),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+                Expanded(
+                  child: Text(title, style: theme.textTheme.titleMedium),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(body, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              body,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             if (status != null) ...[const SizedBox(height: 12), status!],
             if (action != null) ...[const SizedBox(height: 16), action!],
           ],
@@ -180,7 +256,12 @@ class _ActionCard extends StatelessWidget {
 }
 
 class _Notice extends StatelessWidget {
-  const _Notice({required this.icon, required this.title, required this.body, this.action});
+  const _Notice({
+    required this.icon,
+    required this.title,
+    required this.body,
+    this.action,
+  });
 
   final IconData icon;
   final String title;
@@ -202,11 +283,19 @@ class _Notice extends StatelessWidget {
               child: Icon(icon, size: 36, color: theme.colorScheme.primary),
             ),
             const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
-            Text(body,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             if (action != null) ...[const SizedBox(height: 20), action!],
           ],
         ),
@@ -240,7 +329,9 @@ class _WriteTagSheetState extends State<WriteTagSheet> {
 
   @override
   void dispose() {
-    if (_state == _WriteState.ready || _state == _WriteState.writing) widget.nfc.cancelWrite();
+    if (_state == _WriteState.ready || _state == _WriteState.writing) {
+      widget.nfc.cancelWrite();
+    }
     super.dispose();
   }
 
@@ -250,13 +341,19 @@ class _WriteTagSheetState extends State<WriteTagSheet> {
       _error = null;
     });
     try {
-      await widget.nfc.writeUrl(widget.url, onTagDetected: () {
-        if (mounted) setState(() => _state = _WriteState.writing);
-      });
+      await widget.nfc.writeUrl(
+        widget.url,
+        onTagDetected: () {
+          if (mounted) setState(() => _state = _WriteState.writing);
+        },
+      );
       HapticFeedback.mediumImpact();
       if (mounted) setState(() => _state = _WriteState.success);
     } on NfcWriteFailure catch (e) {
-      if (!mounted || e.reason == NfcWriteError.cancelled && _state == _WriteState.success) return;
+      if (!mounted ||
+          e.reason == NfcWriteError.cancelled && _state == _WriteState.success) {
+        return;
+      }
       setState(() {
         _state = _WriteState.failure;
         _error = e.message;
@@ -270,29 +367,29 @@ class _WriteTagSheetState extends State<WriteTagSheet> {
     final status = StatusColors.of(context);
     final (icon, colour, title, body) = switch (_state) {
       _WriteState.ready => (
-          Icons.contactless_outlined,
-          theme.colorScheme.primary,
-          'Ready to write',
-          'Hold an NFC tag flat against the back of your phone.',
-        ),
+        Icons.contactless_outlined,
+        theme.colorScheme.primary,
+        'Ready to write',
+        'Hold an NFC tag flat against the back of your phone.',
+      ),
       _WriteState.writing => (
-          Icons.contactless,
-          theme.colorScheme.primary,
-          'Writing…',
-          'Keep the tag still.',
-        ),
+        Icons.contactless,
+        theme.colorScheme.primary,
+        'Writing…',
+        'Keep the tag still.',
+      ),
       _WriteState.success => (
-          Icons.check_circle,
-          status.success,
-          'Your card is on the tag',
-          'Anyone who taps it will open your profile.',
-        ),
+        Icons.check_circle,
+        status.success,
+        'Your card is on the tag',
+        'Anyone who taps it will open your profile.',
+      ),
       _WriteState.failure => (
-          Icons.error_outline,
-          theme.colorScheme.error,
-          "Couldn't write the tag",
-          _error ?? 'Try again.',
-        ),
+        Icons.error_outline,
+        theme.colorScheme.error,
+        "Couldn't write the tag",
+        _error ?? 'Try again.',
+      ),
     };
 
     return SafeArea(
@@ -303,20 +400,35 @@ class _WriteTagSheetState extends State<WriteTagSheet> {
           children: [
             Icon(icon, size: 72, color: colour),
             const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
-            Text(body,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 24),
             if (_state == _WriteState.writing) const LinearProgressIndicator(),
             if (_state == _WriteState.success)
-              FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
+              ),
             if (_state == _WriteState.failure)
               FilledButton(onPressed: _write, child: const Text('Try again')),
-            if (_state == _WriteState.ready || _state == _WriteState.failure) ...[
+            if (_state == _WriteState.ready ||
+                _state == _WriteState.failure) ...[
               const SizedBox(height: 8),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
             ],
           ],
         ),

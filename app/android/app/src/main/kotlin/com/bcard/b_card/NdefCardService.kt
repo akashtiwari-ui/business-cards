@@ -7,13 +7,14 @@ import android.os.Bundle
  * Makes the phone look like an NFC Forum Type 4 tag holding the profile link,
  * so another phone that taps it opens the profile with no app installed.
  *
- * Only answers while the Share screen's NFC tab is open ([ndefMessage] set);
- * otherwise it reports "file not found" and the reader moves on.
+ * Answers while the Share screen's NFC tab is open ([ndefMessage] set) or,
+ * with "Always on", from the link saved in [NfcShareStore] even when the app
+ * is closed. Otherwise it reports "file not found" and the reader moves on.
  */
 class NdefCardService : HostApduService() {
 
     companion object {
-        /** Raw NDEF message (no length prefix), set from Flutter. */
+        /** Raw NDEF message (no length prefix) for the open NFC tab, set from Flutter. */
         @Volatile
         var ndefMessage: ByteArray? = null
 
@@ -39,7 +40,7 @@ class NdefCardService : HostApduService() {
     private var selected = File.NONE
 
     override fun processCommandApdu(apdu: ByteArray, extras: Bundle?): ByteArray {
-        val message = ndefMessage ?: return NOT_FOUND
+        val message = NfcShareStore.messageToServe(this) ?: return NOT_FOUND
         if (apdu.size < 4) return WRONG_LENGTH
 
         return when (apdu[1].toInt() and 0xFF) {

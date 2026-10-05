@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="nfc_share_service">B Card tap to share</string>
+    <string name="nfc_tile_label">B Card tap</string>
+    <string name="nfc_tile_on">Sharing by tap</string>
+    <string name="nfc_tile_off">Off</string>
+    <string name="nfc_tile_setup">Open B Card to set up</string>
 </resources>

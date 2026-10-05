@@ -34,7 +34,10 @@ void main() {
     final payloadLength = encodeUriPayload(url).length;
 
     expect(bytes[0], 0xC1); // no SR flag
-    expect((bytes[2] << 24) | (bytes[3] << 16) | (bytes[4] << 8) | bytes[5], payloadLength);
+    expect(
+      (bytes[2] << 24) | (bytes[3] << 16) | (bytes[4] << 8) | bytes[5],
+      payloadLength,
+    );
     expect(bytes[6], 0x55);
     expect(bytes.length, 7 + payloadLength);
   });
