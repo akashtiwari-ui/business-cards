@@ -25,6 +25,14 @@ android {
         versionName = flutter.versionName
     }
 
+    // Modern 64-bit ARM phones only. Flutter's --target-platform does not
+    // filter plugin native libraries (ML Kit ships three ABIs), so drop the rest here.
+    packaging {
+        jniLibs {
+            excludes += listOf("lib/armeabi-v7a/**", "lib/x86/**", "lib/x86_64/**")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

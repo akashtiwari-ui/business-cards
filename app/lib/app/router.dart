@@ -7,6 +7,10 @@ import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/card/presentation/card_editor_screen.dart';
 import '../features/card/presentation/my_card_screen.dart';
 import '../features/card/presentation/share_card_screen.dart';
+import '../features/contacts/presentation/contact_screen.dart';
+import '../features/contacts/presentation/contacts_screen.dart';
+import '../features/nearby/presentation/nearby_screen.dart';
+import '../features/scan/presentation/scan_screen.dart';
 import 'home_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -31,6 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
+      GoRoute(path: '/nearby', builder: (_, _) => const NearbyScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => HomeShell(navigationShell: shell),
         branches: [
@@ -53,23 +58,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/scan',
-              builder: (_, _) => const ComingNextScreen(
-                title: 'Scan',
-                icon: Icons.qr_code_scanner,
-                message: 'Scan a B Card or any vCard QR to save the contact.',
-              ),
-            ),
+            GoRoute(path: '/scan', builder: (_, _) => const ScanScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/contacts',
-              builder: (_, _) => const ComingNextScreen(
-                title: 'Contacts',
-                icon: Icons.people_outline,
-                message: 'People you scan will appear here, searchable and offline.',
-              ),
+              builder: (_, _) => const ContactsScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  parentNavigatorKey: _rootKey,
+                  builder: (_, state) => ContactScreen(contactId: state.pathParameters['id']!),
+                ),
+              ],
             ),
           ]),
         ],

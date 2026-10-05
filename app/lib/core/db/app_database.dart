@@ -35,18 +35,53 @@ class Cards extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Cards])
+/// People the user has met: scanned or added by hand (PRD 4.5, 5.2).
+@DataClassName('ContactRow')
+class Contacts extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text().nullable()();
+
+  /// qr, vcard, manual or nfc.
+  TextColumn get source => text()();
+
+  /// Slug of the scanned B Card; one contact per slug per owner.
+  TextColumn get sourceSlug => text().nullable()();
+  TextColumn get sourceCardId => text().nullable()();
+  TextColumn get name => text()();
+  TextColumn get title => text().withDefault(const Constant(''))();
+  TextColumn get company => text().withDefault(const Constant(''))();
+  TextColumn get email => text().withDefault(const Constant(''))();
+  TextColumn get phone => text().withDefault(const Constant(''))();
+  TextColumn get website => text().withDefault(const Constant(''))();
+  TextColumn get linkedin => text().withDefault(const Constant(''))();
+  TextColumn get location => text().withDefault(const Constant(''))();
+  TextColumn get linksJson => text().withDefault(const Constant('[]'))();
+  TextColumn get notes => text().withDefault(const Constant(''))();
+  DateTimeColumn get scannedAt => dateTime().nullable()();
+
+  /// Scanned offline: details are fetched when the network returns.
+  BoolColumn get profilePending => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  BoolColumn get pendingSync => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Cards, Contacts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'b_card'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.addColumn(cards, cards.ownerId);
+          if (from < 3) await m.createTable(contacts);
         },
       );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/widgets/status_pill.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/card_providers.dart';
 import '../domain/business_card.dart';
@@ -64,7 +65,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.badge_outlined, size: 72, color: theme.colorScheme.primary),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              child: Icon(Icons.badge_outlined, size: 40, color: theme.colorScheme.primary),
+            ),
             const SizedBox(height: 16),
             Text('Create your digital card', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
@@ -91,17 +96,11 @@ class _SyncStatus extends StatelessWidget {
   final bool pending;
 
   @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(pending ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined, size: 18, color: color),
-        const SizedBox(width: 4),
-        Text(pending ? 'Waiting to sync' : 'Synced', style: TextStyle(color: color)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => StatusPill(
+        label: pending ? 'Waiting to sync' : 'Synced',
+        icon: pending ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
+        tone: pending ? PillTone.warning : PillTone.success,
+      );
 }
 
 class _CardBody extends ConsumerWidget {
@@ -115,16 +114,18 @@ class _CardBody extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Wrap(
-          spacing: 12,
+          spacing: 8,
+          runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            ActionChip(
-            avatar: Icon(card.isPublic ? Icons.public : Icons.visibility_off_outlined),
-            label: Text(card.isPublic ? 'Public profile · Live' : 'Public profile · Hidden'),
-            tooltip: card.isPublic ? 'Hide public profile' : 'Make profile public',
-            onPressed: () => ref
-                .read(cardRepositoryProvider)
-                .setVisibility(card.id, isPublic: !card.isPublic),
+            StatusPill(
+              icon: card.isPublic ? Icons.public : Icons.visibility_off_outlined,
+              label: card.isPublic ? 'Public profile · Live' : 'Public profile · Hidden',
+              tone: card.isPublic ? PillTone.success : PillTone.neutral,
+              tooltip: card.isPublic ? 'Hide public profile' : 'Make profile public',
+              onTap: () => ref
+                  .read(cardRepositoryProvider)
+                  .setVisibility(card.id, isPublic: !card.isPublic),
             ),
             if (ref.watch(authRequiredProvider)) _SyncStatus(pending: card.syncPending),
           ],

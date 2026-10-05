@@ -5,11 +5,13 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/config/app_config.dart';
+import '../../nfc/presentation/nfc_share_panel.dart';
 import '../application/card_providers.dart';
 
-/// QR code and link sharing (PRD 4.3). The QR encodes only the permanent
-/// profile URL, never personal data, and works offline once rendered.
+/// QR code, link and NFC sharing (PRD 4.3). The QR and NFC tag carry only the
+/// permanent profile URL, never personal data.
 class ShareCardScreen extends ConsumerStatefulWidget {
   const ShareCardScreen({super.key});
 
@@ -46,55 +48,97 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     final card = ref.watch(myCardProvider).value;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Share card')),
-      body: card == null
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                if (!card.isPublic)
-                  Card(
-                    color: theme.colorScheme.errorContainer,
-                    child: const ListTile(
-                      leading: Icon(Icons.visibility_off_outlined),
-                      title: Text('Your profile is hidden'),
-                      subtitle: Text('People who scan will see "Profile unavailable".'),
-                    ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Share card'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.qr_code_2), text: 'QR code'),
+              Tab(icon: Icon(Icons.nfc), text: 'NFC'),
+            ],
+          ),
+        ),
+        body: card == null
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  ListView(
+                    padding: const EdgeInsets.all(24),
+                    children: [
+                      if (!card.isPublic)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Material(
+                            color: StatusColors.of(context).warningContainer,
+                            borderRadius: BorderRadius.circular(16),
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.visibility_off_outlined,
+                                color: StatusColors.of(context).warning,
+                              ),
+                              title: const Text('Your profile is hidden'),
+                              subtitle: const Text(
+                                'People who scan will see "Profile unavailable".',
+                              ),
+                            ),
+                          ),
+                        ),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            // QR stays dark-on-white in dark mode so every scanner reads it.
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                          child: QrImageView(
+                            data: AppConfig.profileUrl(card.slug),
+                            size: 240,
+                            // Level Q leaves room for a centre logo (PRD requires >= M).
+                            errorCorrectionLevel: QrErrorCorrectLevel.Q,
+                            semanticsLabel:
+                                'QR code for ${card.name}\'s profile',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        card.name,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      Text(
+                        'Scan to view my profile',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _LinkRow(url: AppConfig.profileUrl(card.slug)),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => SharePlus.instance.share(
+                          ShareParams(
+                            text:
+                                'Here is my digital business card: ${AppConfig.profileUrl(card.slug)}',
+                            subject: card.name,
+                          ),
+                        ),
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share link'),
+                      ),
+                    ],
                   ),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      // QR stays dark-on-white in dark mode so every scanner reads it.
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: QrImageView(
-                      data: AppConfig.profileUrl(card.slug),
-                      size: 240,
-                      // Level Q leaves room for a centre logo (PRD requires >= M).
-                      errorCorrectionLevel: QrErrorCorrectLevel.Q,
-                      semanticsLabel: 'QR code for ${card.name}\'s profile',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(card.name, textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
-                Text('Scan to view my profile', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 24),
-                _LinkRow(url: AppConfig.profileUrl(card.slug)),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => SharePlus.instance.share(ShareParams(
-                    text: 'Here is my digital business card: ${AppConfig.profileUrl(card.slug)}',
-                    subject: card.name,
-                  )),
-                  icon: const Icon(Icons.share),
-                  label: const Text('Share link'),
-                ),
-              ],
-            ),
+                  NfcSharePanel(url: AppConfig.profileUrl(card.slug)),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -106,11 +150,13 @@ class _LinkRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: ListTile(
-        leading: const Icon(Icons.link),
+        leading: CircleAvatar(
+          backgroundColor: scheme.primaryContainer,
+          child: Icon(Icons.link, color: scheme.primary),
+        ),
         title: Text(url, overflow: TextOverflow.ellipsis),
         trailing: TextButton(
           onPressed: () async {

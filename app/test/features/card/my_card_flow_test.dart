@@ -46,7 +46,12 @@ void main() {
 
     await tester.tap(find.text('Share my card'));
     await tester.pumpAndSettle();
-    expect(find.text('https://bcard.example/p/aarav'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('https://b-cards.vercel.app/p/aarav'),
+      100,
+      scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)),
+    );
+    expect(find.text('https://b-cards.vercel.app/p/aarav'), findsOneWidget);
     expect(find.text('Your profile is hidden'), findsOneWidget);
   });
 

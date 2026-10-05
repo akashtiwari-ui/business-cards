@@ -274,8 +274,6 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            )),
+        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
       );
 }

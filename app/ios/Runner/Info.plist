@@ -2,6 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>B Card uses Bluetooth in Nearby to find other B Card users around you.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>B Card uses the camera to scan business card QR codes.</string>
+	<key>NFCReaderUsageDescription</key>
+	<string>B Card uses NFC to write your profile link to an NFC tag.</string>
+	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
+	<array>
+		<string>D2760000850101</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

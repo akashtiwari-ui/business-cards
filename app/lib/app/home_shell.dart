@@ -1,53 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class HomeShell extends StatelessWidget {
+/// Index of the visible bottom tab, so screens kept alive in the background
+/// (the scanner's camera) can pause themselves.
+class CurrentTab extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void show(int index) {
+    if (state != index) state = index;
+  }
+}
+
+final currentTabProvider = NotifierProvider<CurrentTab, int>(CurrentTab.new);
+
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = navigationShell.currentIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(currentTabProvider.notifier).show(index));
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (i) =>
-            navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
+        selectedIndex: index,
+        onDestinationSelected: (i) => navigationShell.goBranch(i, initialLocation: i == index),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'My Card'),
           NavigationDestination(icon: Icon(Icons.qr_code_scanner), label: 'Scan'),
           NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Contacts'),
         ],
-      ),
-    );
-  }
-}
-
-/// Placeholder for tabs built in the next delivery slice.
-class ComingNextScreen extends StatelessWidget {
-  const ComingNextScreen({super.key, required this.title, required this.icon, required this.message});
-
-  final String title;
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 64, color: Theme.of(context).colorScheme.outline),
-              const SizedBox(height: 16),
-              Text(message, textAlign: TextAlign.center),
-            ],
-          ),
-        ),
       ),
     );
   }

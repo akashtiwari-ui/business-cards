@@ -2,13 +2,13 @@
 ///
 /// Example:
 /// flutter run --dart-define-from-file=config/supabase.json \
-///   --dart-define=PROFILE_BASE_URL=https://bcard.link/p
+///   --dart-define=PROFILE_BASE_URL=https://other.domain/p  (optional override)
 abstract final class AppConfig {
   /// Base of the permanent public profile URL encoded in every QR code.
   /// Must be a domain we own forever: printed QR codes cannot change.
   static const profileBaseUrl = String.fromEnvironment(
     'PROFILE_BASE_URL',
-    defaultValue: 'https://bcard.example/p',
+    defaultValue: 'https://b-cards.vercel.app/p',
   );
 
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');

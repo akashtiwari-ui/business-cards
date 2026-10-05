@@ -94,7 +94,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.badge_outlined, size: 56, color: theme.colorScheme.primary),
+                    Center(
+                      // White tile in both themes: the logo is drawn for a light background.
+                      child: Container(
+                        width: 96,
+                        height: 96,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: theme.colorScheme.outline),
+                        ),
+                        child: Image.asset('assets/images/logo.png', semanticLabel: 'B Card logo'),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       _isSignUp ? 'Create your account' : 'Welcome back',
@@ -105,7 +118,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     Text(
                       'One tap to share who you are; one scan to remember who you met.',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 32),
                     if (_info != null) _Banner(text: _info!, isError: false),
@@ -171,18 +184,18 @@ class _Banner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Card(
-        elevation: 0,
-        color: isError ? scheme.errorContainer : scheme.secondaryContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: isError ? scheme.errorContainer : scheme.primaryContainer,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               Icon(isError ? Icons.error_outline : Icons.mark_email_read_outlined,
-                  color: isError ? scheme.onErrorContainer : scheme.onSecondaryContainer),
+                  color: isError ? scheme.onErrorContainer : scheme.onPrimaryContainer),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(text,
-                    style: TextStyle(color: isError ? scheme.onErrorContainer : scheme.onSecondaryContainer)),
+                    style: TextStyle(color: isError ? scheme.onErrorContainer : scheme.onPrimaryContainer)),
               ),
             ],
           ),
